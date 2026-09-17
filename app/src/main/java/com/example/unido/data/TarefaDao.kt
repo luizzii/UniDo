@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 interface TarefaDao {
     @Query("SELECT * FROM Tarefa ORDER BY id DESC")
     fun listarTarefas(): Flow<List<Tarefa>>
+    
 
     @Query("SELECT * FROM Tarefa WHERE id = :id LIMIT 1")
     suspend fun buscarPorId(id: Int): Tarefa?
