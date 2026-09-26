@@ -1,4 +1,4 @@
-package com.example.unido.ui
+package com.example.unido.ui.list
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,7 +24,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,21 +41,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.unido.R
-import com.example.unido.data.Tarefa
-import com.example.unido.viewmodel.TarefaViewModel
+import com.example.unido.data.local.Task
+import com.example.unido.viewmodel.TaskViewModel
 
 @Composable
-fun ListaTarefasScreen(
-    viewModel: TarefaViewModel,
-    onNovaTarefa: () -> Unit,
-    onTarefaClick: (Int) -> Unit
+fun TaskListScreen(
+    viewModel: TaskViewModel,
+    onNewTask: () -> Unit,
+    onTaskClick: (Int) -> Unit
 ) {
-    val tarefas by viewModel.tarefas.collectAsState()
-    var filtro by remember { mutableStateOf("") }
+    val tasks by viewModel.tasks.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
 
-    val tarefasFiltradas = tarefas.filter {
-        it.titulo.contains(filtro, ignoreCase = true) ||
-            it.disciplina.contains(filtro, ignoreCase = true)
+    val filteredTasks = tasks.filter {
+        it.title.contains(searchQuery, ignoreCase = true) ||
+            it.subject.contains(searchQuery, ignoreCase = true)
     }
 
     Column(
@@ -73,17 +72,17 @@ fun ListaTarefasScreen(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
-                value = filtro,
-                onValueChange = { filtro = it },
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 placeholder = { Text("Nova tarefa") },
                 shape = RoundedCornerShape(8.dp)
             )
-            IconButton(onClick = onNovaTarefa) {
+            IconButton(onClick = onNewTask) {
                 Icon(Icons.Default.Add, contentDescription = "Adicionar tarefa", modifier = Modifier.size(30.dp))
             }
-            IconButton(onClick = { /* filtro visual; a busca já filtra */ }) {
+            IconButton(onClick = { /* searchQuery visual; a busca já filtra */ }) {
                 Icon(Icons.Default.FilterList, contentDescription = "Filtrar")
             }
         }
@@ -100,18 +99,18 @@ fun ListaTarefasScreen(
         }
         Spacer(Modifier.height(8.dp))
 
-        if (tarefasFiltradas.isEmpty()) {
+        if (filteredTasks.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("Nenhuma tarefa cadastrada.", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                TextButton(onClick = onNovaTarefa) { Text("Adicionar primeira tarefa") }
+                TextButton(onClick = onNewTask) { Text("Adicionar primeira tarefa") }
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(tarefasFiltradas, key = { it.id }) { tarefa ->
-                    TarefaCard(tarefa, onTarefaClick, viewModel)
+                items(filteredTasks, key = { it.id }) { task ->
+                    TaskCard(task, onTaskClick, viewModel)
                 }
             }
         }
@@ -136,13 +135,13 @@ private fun Header() {
 }
 
 @Composable
-private fun TarefaCard(
-    tarefa: Tarefa,
-    onTarefaClick: (Int) -> Unit,
-    viewModel: TarefaViewModel
+private fun TaskCard(
+    task: Task,
+    onTaskClick: (Int) -> Unit,
+    viewModel: TaskViewModel
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onTarefaClick(tarefa.id) },
+        modifier = Modifier.fillMaxWidth().clickable { onTaskClick(task.id) },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF2F2F2))
     ) {
@@ -151,22 +150,22 @@ private fun TarefaCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
-                checked = tarefa.concluida,
-                onCheckedChange = { if (it) viewModel.concluirTarefa(tarefa) }
+                checked = task.completed,
+                onCheckedChange = { if (it) viewModel.completeTask(task) }
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    tarefa.titulo,
+                    task.title,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     maxLines = 1
                 )
-                Text(tarefa.disciplina, fontSize = 12.sp)
-                Text(tarefa.criadoPor, fontSize = 10.sp, color = Color.DarkGray)
+                Text(task.subject, fontSize = 12.sp)
+                Text(task.createdBy, fontSize = 10.sp, color = Color.DarkGray)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(if (tarefa.concluida) "CONCLUÍDA" else tarefa.dataHora, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                IconButton(onClick = { viewModel.deletarTarefa(tarefa) }) {
+                Text(if (task.completed) "CONCLUÍDA" else task.dateTime, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                IconButton(onClick = { viewModel.deleteTask(task) }) {
                     Icon(Icons.Default.Delete, contentDescription = "Excluir tarefa")
                 }
             }

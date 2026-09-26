@@ -1,5 +1,18 @@
-# Project exclude paths
-/.gradle/
-/app/build/
-/app/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/
-/build/
+# Gradle
+.gradle/
+build/
+.kotlin/
+
+# Configuração local (caminho do SDK, etc.)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
