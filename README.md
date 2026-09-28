@@ -31,6 +31,10 @@ O UniDo é um aplicativo Android nativo para gerenciar tarefas acadêmicas: cada
 - [x] Arquitetura MVVM
 - [x] Duas telas principais: lista e cadastro/detalhes
 - [x] Cadastro, listagem, consulta, conclusão e exclusão de tarefas
+- [x] Splash screen com o logo e ícone próprio do app
+- [x] Seleção de prazo com calendário e relógio
+- [x] Destaque visual: verde para concluída, vermelho para atrasada
+- [x] Busca por texto e filtro por status
 
 ---
 
@@ -43,6 +47,7 @@ O UniDo é um aplicativo Android nativo para gerenciar tarefas acadêmicas: cada
 | Navegação | Navigation Compose | 2.8.5 |
 | Persistência | Room (runtime, ktx, compiler via KSP) | 2.6.1 |
 | Estado / ciclo de vida | Lifecycle ViewModel + Coroutines / Flow | 2.8.7 |
+| Splash screen | AndroidX Core SplashScreen | 1.0.1 |
 | Processador de anotações | KSP | 2.0.21-1.0.28 |
 | Build | Android Gradle Plugin / Gradle Wrapper | 8.7.3 / 9.3.0 |
 | JVM de compilação | Java | 17 |
@@ -196,6 +201,8 @@ O app segue o padrão **MVVM** (*Model–View–ViewModel*), com **fluxo de dado
 - **Concorrência:** as operações de escrita são `suspend` e rodam em `viewModelScope.launch`. O Room as executa fora da *main thread*.
 - **ViewModel compartilhado:** um único `TaskViewModel`, no escopo da `MainActivity`, atende as duas telas.
 - **Activity única:** existe só uma `Activity`. As "telas" são destinos *composable* do `NavHost`.
+- **Splash screen:** usa a API `core-splashscreen`, que funciona igual do Android 7 ao 15. A splash fica na tela até `TaskViewModel.isReady` (primeira leitura do banco) e por no mínimo `MIN_SPLASH_MS` (1 s) em `MainActivity`.
+- **Status derivado, não salvo:** a condição "atrasada" é calculada na hora (`Task.isOverdue(now)`), comparando o prazo com o relógio. O relógio da UI (`rememberCurrentTimeMillis`) atualiza a cada minuto, então um cartão fica vermelho sozinho quando o prazo vence.
 
 ---
 
@@ -218,8 +225,10 @@ UniDo/
     └── src/main/
         ├── AndroidManifest.xml   # Registra UniDoApplication e MainActivity (LAUNCHER)
         ├── res/
-        │   ├── drawable/         # ic_unido_logo.xml (logo vetorial)
-        │   └── values/           # colors.xml e themes.xml (tema nativo Theme.UniDo)
+        │   ├── drawable/         # ic_unido_logo.xml e ic_launcher_foreground.xml (logo)
+        │   ├── mipmap/           # ícone do app para Android 7.x (logo sobre círculo branco)
+        │   ├── mipmap-anydpi-v26/# ícone adaptativo (Android 8+)
+        │   └── values/           # cores e temas (Theme.UniDo e Theme.UniDo.Starting)
         └── java/com/example/unido/
             ├── UniDoApplication.kt
             ├── MainActivity.kt
@@ -230,16 +239,23 @@ UniDo/
             │   │   └── TaskDatabase.kt
             │   └── repository/
             │       └── TaskRepository.kt
+            ├── util/
+            │   └── DueDate.kt
             ├── viewmodel/
             │   └── TaskViewModel.kt
             └── ui/
                 ├── navigation/
                 │   └── UniDoNavHost.kt
                 ├── theme/
+                │   ├── Color.kt
                 │   └── Theme.kt
+                ├── components/
+                │   └── CurrentTime.kt
                 ├── list/
+                │   ├── TaskFilter.kt
                 │   └── TaskListScreen.kt
                 └── details/
+                    ├── DateTimePickerField.kt
                     └── TaskDetailsScreen.kt
 ```
 
@@ -248,34 +264,42 @@ UniDo/
 #### Raiz (`com.example.unido`)
 Ponto de entrada do processo e da interface.
 - **`UniDoApplication.kt`**: subclasse de `Application`, criada antes de qualquer tela. Funciona como o *container* de dependências e expõe o `repository` (criado sob demanda).
-- **`MainActivity.kt`**: a única `Activity`. Ativa o modo *edge-to-edge*, cria o `TaskViewModel` com a factory e monta a interface: `UniDoTheme { UniDoNavHost(viewModel) }`.
+- **`MainActivity.kt`**: a única `Activity`. Instala a splash screen (`installSplashScreen()`), cria o `TaskViewModel` com `by viewModels { factory }`, ativa o modo *edge-to-edge* e monta a interface: `UniDoTheme { UniDoNavHost(viewModel) }`.
 
 #### `data/`
 É a camada de dados. Não conhece nada da interface.
 
 - **`data/local/`**: persistência local com Room.
   - `Task.kt`: `@Entity` que representa uma tarefa. Mapeia para a tabela `Tarefa`. Os nomes das colunas continuam em português para manter compatível o banco das instalações antigas.
-  - `TaskDao.kt`: interface `@Dao` com as consultas `getAllTasks()` (reativa, com `Flow`), `getById()`, `insert()`, `update()` e `delete()`. O KSP gera a implementação durante a compilação.
+  - `TaskDao.kt`: interface `@Dao` com as consultas `getAllTasks()` e `getById()` (ambas reativas, com `Flow`), `insert()`, `update()` e `delete()`. O KSP gera a implementação durante a compilação.
   - `TaskDatabase.kt`: `@Database` (versão 1), singleton que abre o arquivo `unido.db`.
 - **`data/repository/`**: abstração sobre as fontes de dados.
   - `TaskRepository.kt`: repassa as chamadas ao DAO. É aqui que outra fonte de dados (uma API, por exemplo) entraria sem que o ViewModel precisasse mudar.
 
+#### `util/`
+Funções puras, sem Android nem Compose.
+- **`DueDate.kt`**: formata e interpreta o prazo no padrão `dd/MM/yyyy HH:mm` (`DueDate.format` / `DueDate.parse`) e define `Task.isOverdue(now)`: a tarefa está atrasada se estiver pendente e o prazo já tiver passado. Textos fora do padrão, como `"Data não informada"`, nunca contam como atrasados.
+
 #### `viewmodel/`
 É a camada de apresentação. Guarda o estado e a lógica, mas não desenha nada.
-- **`TaskViewModel.kt`**: expõe `tasks: StateFlow<List<Task>>` e as ações `addTask()` (valida o título, remove espaços e aplica valores padrão), `completeTask()`, `deleteTask()` e `getById()`. Também contém a `factory` que injeta o repositório.
+- **`TaskViewModel.kt`**: expõe `tasks: StateFlow<List<Task>>` e as ações `addTask()` (valida o título, remove espaços e aplica valores padrão), `completeTask()`, `deleteTask()` e `getTask(id)` (um `Flow` da tarefa). Também expõe `isReady`, usado para liberar a splash, e contém a `factory` que injeta o repositório.
 
 #### `ui/`
 É a camada de interface, só com Jetpack Compose. As telas não acessam dados diretamente: tudo passa pelo ViewModel.
 - **`ui/navigation/`**: `UniDoNavHost.kt` declara o grafo de navegação e o objeto `Routes` (`"list"` e `"details/{id}"`, onde `id = -1` significa "nova tarefa").
-- **`ui/theme/`**: `Theme.kt` define o `UniDoTheme` (Material 3 + `Surface`). É o lugar para personalizar cores e tipografia.
-- **`ui/list/`**: `TaskListScreen.kt` é a tela inicial, com cabeçalho, busca por título ou disciplina, uma `LazyColumn` de `TaskCard` (checkbox para concluir e lixeira para excluir) e o estado vazio.
-- **`ui/details/`**: `TaskDetailsScreen.kt` é uma tela com dois modos: **formulário** de nova tarefa (`taskId <= 0`) ou **visualização** somente leitura de uma tarefa existente, com o botão *CONCLUIR*.
+- **`ui/theme/`**: `Theme.kt` define o `UniDoTheme` (Material 3 + `Surface`). `Color.kt` concentra as cores de status (`CompletedGreen`, `OverdueRed` e os fundos claros correspondentes).
+- **`ui/components/`**: componentes reutilizáveis. `CurrentTime.kt` expõe `rememberCurrentTimeMillis()`, um relógio que atualiza a cada minuto.
+- **`ui/list/`**: `TaskListScreen.kt` é a tela inicial, com cabeçalho, campo de **busca** (título ou disciplina), botão de **filtro** por status (menu com Todas, Pendentes, Atrasadas e Concluídas, definido em `TaskFilter.kt`) e a `LazyColumn` de `TaskCard`. Cada cartão fica **verde** se estiver concluído e **vermelho** se estiver atrasado.
+- **`ui/details/`**: `TaskDetailsScreen.kt` é uma tela com dois modos: **formulário** de nova tarefa (`taskId <= 0`) ou **visualização** somente leitura de uma tarefa existente, com o botão *CONCLUIR*. Os banners mudam de cor conforme o status. `DateTimePickerField.kt` é o campo de prazo: ao ser tocado, abre um `DatePickerDialog` e depois um `TimePicker` (relógio de 24 h).
 
 #### `res/`
 São os recursos nativos do Android.
-- `drawable/ic_unido_logo.xml`: o logo, em vetor.
-- `values/themes.xml`: o tema `Theme.UniDo`, aplicado à activity antes do Compose assumir a tela. Define as barras de status e de navegação brancas com ícones escuros.
-- `values/colors.xml`: as cores básicas.
+- `drawable/ic_unido_logo.xml`: o logo, em vetor, usado no cabeçalho da lista.
+- `drawable/ic_launcher_foreground.xml`: o mesmo logo, centralizado na área segura de 108 dp do ícone adaptativo. É usado no ícone do app e na splash.
+- `mipmap-anydpi-v26/ic_launcher(_round).xml`: ícone adaptativo (fundo branco + logo + versão monocromática para ícones temáticos do Android 13+).
+- `mipmap/ic_launcher(_round).xml`: ícone para Android 7.x, que não tem ícone adaptativo.
+- `values/themes.xml`: `Theme.UniDo.Starting` (tema da splash, com fundo branco e logo) e `Theme.UniDo` (tema aplicado depois da splash, com barras de status e de navegação brancas).
+- `values/colors.xml` e `values/ic_launcher_background.xml`: cores básicas e o fundo do ícone.
 
 ---
 
@@ -291,7 +315,7 @@ flowchart TD
     List -- "Clique no cartão" --> DetailRoute{{"details/{id}"}}
 
     NewRoute --> Form["<b>Formulário</b><br/>Nova tarefa"]
-    DetailRoute --> Loading["Carregando...<br/><i>getById(id)</i>"]
+    DetailRoute --> Loading["Carregando...<br/><i>getTask(id)</i>"]
     Loading --> Details["<b>Detalhes</b><br/>Tarefa (somente leitura)"]
 
     Form -- "SALVAR<br/>(addTask)" --> Back(["popBackStack()"])
@@ -311,45 +335,54 @@ flowchart TD
 
 ### Etapas de cada operação
 
-#### 1. Inicialização do app
-1. O Android cria a `UniDoApplication`.
-2. A `MainActivity.onCreate()` busca o `repository`. No primeiro acesso, isso cria o `TaskDatabase` e o `TaskRepository`.
-3. `setContent` cria o `TaskViewModel` através da `factory`.
-4. O `UniDoNavHost` abre a rota `"list"`.
-5. A `TaskListScreen` coleta `viewModel.tasks` e o Room faz o primeiro `SELECT`.
+#### 1. Inicialização do app (splash)
+1. O Android cria a `UniDoApplication` e abre a `MainActivity` com o tema `Theme.UniDo.Starting`, que mostra a **splash** (fundo branco + logo).
+2. `installSplashScreen()` é chamado antes do `super.onCreate()`.
+3. O `TaskViewModel` é criado (`by viewModels`). O acesso ao `repository` cria o `TaskDatabase` e o `TaskRepository`, e o `init` do ViewModel lê a primeira lista do banco e marca `isReady = true`.
+4. `setKeepOnScreenCondition` mantém a splash enquanto `isReady` for falso **ou** não tiver passado 1 s.
+5. A splash some, o tema troca para `Theme.UniDo` e o `UniDoNavHost` mostra a rota `"list"`.
 6. A lista é desenhada, ou aparece o estado vazio "Nenhuma tarefa cadastrada.".
 
 #### 2. Criar uma tarefa
 1. Na lista, o usuário toca em **+** e o app navega para `details/-1`.
 2. A `TaskDetailsScreen` entra no modo formulário: Título, Disciplina, Data e hora, Descrição.
-3. O botão **SALVAR** só fica habilitado quando o título não está vazio.
-4. Ao salvar, o app chama `viewModel.addTask(...)`, que:
+3. No campo **Data e hora**, o toque abre o **calendário** (`DatePickerDialog`). Depois de *PRÓXIMO*, abre o **relógio** (`TimePicker`, 24 h). Ao confirmar, o campo mostra o prazo no formato `dd/MM/yyyy HH:mm`.
+4. O botão **SALVAR** só fica habilitado quando o título não está vazio.
+5. Ao salvar, o app chama `viewModel.addTask(...)`, que:
    - remove os espaços das pontas dos campos (`trim`);
    - aplica valores padrão (`"Sem disciplina"`, `"Data não informada"`, `"Sem descrição"`);
    - define `createdBy = "Criado pelo aluno"`;
    - chama `repository.insert()`, que executa `INSERT` no SQLite.
-5. `onBack()` faz `popBackStack()` e o usuário volta para a lista.
-6. O `Flow` do Room emite a lista nova e a tarefa aparece no topo (`ORDER BY id DESC`).
+6. `onBack()` faz `popBackStack()` e o usuário volta para a lista.
+7. O `Flow` do Room emite a lista nova e a tarefa aparece no topo (`ORDER BY id DESC`).
 
 #### 3. Consultar uma tarefa
 1. O usuário toca num cartão, e o app navega para `details/{id}`.
-2. O `LaunchedEffect(taskId)` chama `viewModel.getById(id)`, que executa um `SELECT ... WHERE id = :id`.
+2. A tela coleta `viewModel.getTask(id)`, um `Flow` de `SELECT ... WHERE id = :id` que emite de novo sempre que a tarefa muda.
 3. Enquanto a tarefa carrega, aparece "Carregando...". Depois, a tela mostra o status, título, disciplina, autor, prazo e descrição.
+4. Os banners de status e de prazo ficam **verdes** ("Atividade concluída"), **vermelhos** ("Atividade atrasada" / "Prazo encerrado em ...") ou **cinza** ("Atividade pendente").
 
 #### 4. Concluir uma tarefa
 1. O usuário marca o **checkbox** na lista ou toca em **CONCLUIR** na tela de detalhes.
 2. O app chama `viewModel.completeTask(task)`, que executa `repository.update(task.copy(completed = true))`, ou seja, um `UPDATE`.
-3. O `Flow` emite a lista nova e o cartão passa a mostrar "CONCLUÍDA".
+3. O `Flow` emite a lista nova. O cartão fica **verde** (fundo, borda e checkbox) e mostra "CONCLUÍDA". Na tela de detalhes, o banner fica verde e o botão vira um ícone de check verde na hora.
 
-#### 5. Excluir uma tarefa
+#### 5. Tarefa atrasada
+1. A cada recomposição, e a cada minuto pelo `rememberCurrentTimeMillis()`, a UI calcula `task.isOverdue(now)`.
+2. Se a tarefa estiver pendente e `DueDate.parse(dateTime) < now`, o cartão fica **vermelho** (fundo, borda, "ATRASADA" + prazo).
+3. Ao ser concluída, a tarefa deixa de estar atrasada e fica verde.
+
+#### 6. Excluir uma tarefa
 1. O usuário toca na **lixeira** do cartão.
 2. O app chama `viewModel.deleteTask(task)`, que executa `repository.delete()`, ou seja, um `DELETE`, sem confirmação.
 3. O `Flow` emite a lista nova e o cartão some.
 
-#### 6. Buscar
-1. O usuário digita no campo de texto da lista, e o estado `searchQuery` muda.
-2. `filteredTasks` é recalculada na memória: mantém as tarefas cujo `title` ou `subject` contêm o texto, sem diferenciar maiúsculas de minúsculas.
-3. A `LazyColumn` é redesenhada. Não há consulta nova ao banco.
+#### 7. Buscar e filtrar
+1. O usuário digita no campo **Buscar** (ícone de lupa, com botão **X** para limpar), o que muda `searchQuery`.
+2. O usuário toca no botão de **filtro** e escolhe um status: *Todas*, *Pendentes*, *Atrasadas* ou *Concluídas*. Isso muda `statusFilter`. Com um filtro ativo, o ícone ganha um ponto (badge) e a faixa mostra, por exemplo, "TAREFAS · ATRASADAS".
+3. `filteredTasks` é recalculada na memória: a tarefa precisa combinar com o **status** (`TaskFilter.matches`) **e** com a **busca** (título ou disciplina, sem diferenciar maiúsculas de minúsculas).
+4. Se nada combinar, aparece "Nenhuma tarefa encontrada." com o botão *Limpar busca e filtro*.
+5. Busca e filtro usam `rememberSaveable`, então continuam ativos depois de abrir uma tarefa e voltar ou de girar a tela.
 
 ---
 
@@ -363,7 +396,7 @@ Banco: `unido.db`, versão 1. Tabela: **`Tarefa`**.
 | `title` | `titulo` | `TEXT` | Obrigatório (validado na UI e no ViewModel) |
 | `subject` | `disciplina` | `TEXT` | Padrão: `"Sem disciplina"` |
 | `createdBy` | `criadoPor` | `TEXT` | Sempre `"Criado pelo aluno"` |
-| `dateTime` | `dataHora` | `TEXT` | Texto livre. Padrão: `"Data não informada"` |
+| `dateTime` | `dataHora` | `TEXT` | Prazo no formato `dd/MM/yyyy HH:mm` (escolhido no calendário e no relógio). Padrão: `"Data não informada"` |
 | `description` | `descricao` | `TEXT` | Padrão: `"Sem descrição"` |
 | `completed` | `concluida` | `INTEGER` (0/1) | Padrão: `false` |
 
@@ -373,11 +406,10 @@ Banco: `unido.db`, versão 1. Tabela: **`Tarefa`**.
 
 ## Limitações conhecidas
 
-- Depois de tocar em **CONCLUIR** na tela de detalhes, a tela só mostra o novo status quando o usuário sai e volta, porque a tarefa é carregada uma única vez.
 - Não é possível editar uma tarefa existente nem desmarcar uma tarefa concluída.
 - A exclusão não pede confirmação.
-- O botão de filtro da lista é apenas visual. A filtragem é feita pelo campo de texto.
-- A data e a hora são texto livre, sem validação nem ordenação por prazo.
+- A lista é ordenada pela data de criação, não pelo prazo.
+- Tarefas criadas antes do seletor de data, com prazo em texto livre, nunca aparecem como atrasadas.
 - O projeto ainda não tem testes automatizados.
 
 ---

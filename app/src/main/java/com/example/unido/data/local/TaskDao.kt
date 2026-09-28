@@ -13,7 +13,7 @@ interface TaskDao {
     fun getAllTasks(): Flow<List<Task>>
 
     @Query("SELECT * FROM Tarefa WHERE id = :id LIMIT 1")
-    suspend fun getById(id: Int): Task?
+    fun getById(id: Int): Flow<Task?>
 
     @Insert
     suspend fun insert(task: Task)
