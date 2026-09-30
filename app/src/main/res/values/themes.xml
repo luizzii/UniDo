@@ -7,4 +7,11 @@
         <item name="android:statusBarColor">#FFFFFF</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+
+    <!-- Shown while the app starts; switches to Theme.UniDo after installSplashScreen(). -->
+    <style name="Theme.UniDo.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.UniDo</item>
+    </style>
 </resources>
