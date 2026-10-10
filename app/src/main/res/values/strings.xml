@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">UniDo</string>
+    <string name="logo_description">Logo UniDo</string>
+    <string name="tagline_line1">Sua rotina acadêmica</string>
+    <string name="tagline_line2">organizada.</string>
+
+    <!-- Lista -->
+    <string name="my_tasks">Minhas tarefas</string>
+    <string name="search_placeholder">Buscar título ou disciplina</string>
+    <string name="clear_search">Limpar busca</string>
+    <string name="add_task">Adicionar tarefa</string>
+    <string name="filter_by_status">Filtrar por status</string>
+    <string name="filter_selected">Selecionado</string>
+    <string name="filter_all">Todas</string>
+    <string name="filter_pending">Pendentes</string>
+    <string name="filter_overdue">Atrasadas</string>
+    <string name="filter_completed">Concluídas</string>
+    <string name="tasks_header">TAREFAS</string>
+    <string name="tasks_header_filtered">TAREFAS · %1$s</string>
+    <string name="empty_no_tasks">Nenhuma tarefa cadastrada.</string>
+    <string name="add_first_task">Adicionar primeira tarefa</string>
+    <string name="empty_no_results">Nenhuma tarefa encontrada.</string>
+    <string name="clear_search_and_filter">Limpar busca e filtro</string>
+    <string name="status_completed">CONCLUÍDA</string>
+    <string name="status_overdue">ATRASADA</string>
+    <string name="delete_task">Excluir tarefa</string>
+    <string name="delete_dialog_title">Excluir tarefa?</string>
+    <string name="delete_dialog_message">“%1$s” será excluída. Esta ação não pode ser desfeita.</string>
+    <string name="delete">EXCLUIR</string>
+    <string name="cancel">CANCELAR</string>
+
+    <!-- Detalhes -->
+    <string name="back">Voltar</string>
+    <string name="back_to_list">Retornar à lista</string>
+    <string name="loading">Carregando…</string>
+    <string name="edit_task">Editar tarefa</string>
+    <string name="banner_completed">Atividade concluída</string>
+    <string name="banner_overdue">Atividade atrasada</string>
+    <string name="banner_pending">Atividade pendente</string>
+    <string name="due_completed">O prazo era %1$s</string>
+    <string name="due_overdue">Prazo encerrado em %1$s</string>
+    <string name="due_pending">Termina em %1$s</string>
+    <string name="no_due_date">Data não informada</string>
+    <string name="no_subject">Sem disciplina</string>
+    <string name="no_description">Sem descrição</string>
+    <string name="description_label">Descrição</string>
+    <string name="complete">CONCLUIR</string>
+    <string name="reopen">REABRIR</string>
+    <string name="task_completed_description">Tarefa concluída</string>
+
+    <!-- Formulário -->
+    <string name="new_task">Nova tarefa</string>
+    <string name="field_title">Título</string>
+    <string name="field_subject">Disciplina</string>
+    <string name="field_due">Data e hora</string>
+    <string name="save">SALVAR</string>
+    <string name="tap_to_choose">Toque para escolher</string>
+    <string name="pick_date_time">Escolher data e hora</string>
+    <string name="clear_due">Remover prazo</string>
+    <string name="pick_time_title">Selecione o horário</string>
+    <string name="next">PRÓXIMO</string>
+    <string name="ok">OK</string>
+</resources>
