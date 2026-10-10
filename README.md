@@ -6,10 +6,8 @@ Projeto final da trilha Android (Capacita iRede): uma lista de tarefas acadêmic
 
 ## Informações do aluno
 
-| | |
-|---|---|
-| **Nome completo** | Luise Gomes Lúcio |
-| **Matrícula** | 09157712336 |
+**Nome Completo:** Luise Gomes Lúcio
+**Matrícula**: 09157712336
 
 O planejamento deste projeto (Unidade 6, Capítulo 1) foi entregue em 19/07/2026. Este documento apresenta o aplicativo pronto e compara o resultado com o que foi planejado.
 
