@@ -7,6 +7,7 @@ Projeto final da trilha Android (Capacita iRede): uma lista de tarefas acadêmic
 ## Informações do aluno
 
 **Nome Completo:** Luise Gomes Lúcio
+
 **Matrícula**: 09157712336
 
 O planejamento deste projeto (Unidade 6, Capítulo 1) foi entregue em 19/07/2026. Este documento apresenta o aplicativo pronto e compara o resultado com o que foi planejado.
@@ -117,20 +118,6 @@ Estados que não estavam no planejamento: `searchQuery` (texto da busca), `statu
 | "Retornar à lista" | Detalhes | Lista (`popBackStack()`) | Como planejado |
 | Botão + | Lista | Formulário (`form/-1`) | Novo |
 | Lápis de edição | Detalhes | Formulário (`form/{id}`) | Novo |
-
-## Outras observações
-
-- **Além do escopo do módulo inicial**: persistência com Room, arquitetura em camadas (dados, `ViewModel` e interface), tela de abertura (splash), tema escuro e seletor de data e hora do Material 3.
-- **Testes**: há testes unitários para as regras de prazo e de filtro (`./gradlew test`). Ainda não há testes de interface.
-- **Limitações**: a exclusão não pode ser desfeita depois de confirmada, e o aplicativo guarda o prazo da tarefa, mas não a data em que ela foi concluída.
-- **Próximos passos**: contas de aluno e professor com sincronização, para realizar a ideia original de o professor publicar as tarefas da disciplina; e notificações antes do vencimento do prazo.
-
-## Como executar
-
-1. Abra a pasta do projeto no Android Studio e aguarde a sincronização do Gradle.
-2. Execute o módulo `app` em um emulador ou aparelho com Android 7.0 (API 24) ou superior.
-
-Pela linha de comando: `./gradlew installDebug`.
 
 ## Tecnologias
 
